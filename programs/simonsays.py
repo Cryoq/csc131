@@ -4,13 +4,18 @@ import pygame
 from random import *
 
 pygame.init()
-DEBUG = False
+DEBUG = True
 # Gpio pins From L to R
-switches = [20,16,12,26]
+switches = [27,26,25,24]
 # Led pins from L to R
-leds = [9,13,19,21]
+leds = [4,5,6,12]
 noteSpeed = 1.0
 playSpeed = 0.5
+if DEBUG:
+    score = 9
+else:
+    score = -1
+
 visuals = True
 sounds = [ pygame.mixer.Sound("one.wav"),
 pygame.mixer.Sound("two.wav"),
@@ -18,17 +23,18 @@ pygame.mixer.Sound("three.wav"),
 pygame.mixer.Sound("four.wav") ]
 
 GPIO.setmode(GPIO.LE_POTATO_LOOKUP)
-
-GPIO.setup(switches, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-GPIO.setup(leds, GPIO.OUT)
+for i,pin in enumerate(switches):
+    GPIO.setup(pin, GPIO.IN, GPIO.PUD_DOWN)
+for _,pin in enumerate(leds):
+    GPIO.setup(pin, GPIO.OUT)
 
 def all_on():
-    for _ in leds:
-        GPIO.output(leds, True)
+    for _,pin in enumerate(leds):
+        GPIO.output(pin, True)
         
 def all_off():
-    for _ in leds:
-        GPIO.output(leds, False)
+    for _,pin in enumerate(leds):
+        GPIO.output(pin, False)
         
 def lose():
     for _ in range(0,4):
@@ -48,22 +54,36 @@ print("Press Ctrl+C to exit...")
 
 try:
     while True:
+        score += 1
+        
+        if score == 5: noteSpeed -= .1; playSpeed -= .1
+        elif score == 7: noteSpeed -= .1; playSpeed -= .1
+        elif score == 10: noteSpeed -= .1; playSpeed -= .05
+        elif score == 13: noteSpeed -= .1; playSpeed -= .1
+        elif score == 15: visuals = False
+        
         seq.append(randint(0,3))
+        
         if DEBUG:
             if len(seq) > 3:
                 print()
             print(f"Seq={seq}")
+            print(f"Your score is currently {score}")
             
         if visuals:
+            if DEBUG:
+                print("there are visuals")
             for s in seq:
                 GPIO.output(leds[s], True)
-                sounds[s].play
+                sounds[s].play()
                 sleep(noteSpeed)
                 GPIO.output(leds[s],False)
                 sleep(playSpeed)
         else:
+            if DEBUG:
+                print("no visuals")
             for s in seq:
-                sounds[s].play
+                sounds[s].play()
                 sleep(noteSpeed)
                 sleep(playSpeed)
                 
@@ -76,14 +96,11 @@ try:
             
             while not pressed:
                 
-                for i in range(len(switches)):
-                    while GPIO.input(switches[i]):
-                        val = 1
+                for i,pin in enumerate(switches):
+                    while GPIO.input(pin):
+                        val = i
                         pressed = True
             
-            if DEBUG:
-                print(val)
-                
             GPIO.output(leds[val], True)
             sounds[val].play()
             sleep(1)
@@ -91,18 +108,13 @@ try:
             sleep(0.25)
             
             if val != seq[switchCount]:
-                print(f"You made it to a sequence of {switchCount}")
+                print(f"You made it to a sequence of {score}")
                 lose()
                 GPIO.cleanup()
                 exit(0)
-                
+
             switchCount += 1
-            
-            if switchCount == 5: noteSpeed -= .1; playSpeed -= .1
-            elif switchCount == 7: noteSpeed -= .1; playSpeed -= .1
-            elif switchCount == 10: noteSpeed -= .1; playSpeed -= .05
-            elif switchCount == 13: noteSpeed -= .1; playSpeed -= .1
-            elif switchCount == 15: visuals = False
+
     
 except KeyboardInterrupt:
     GPIO.cleanup()
